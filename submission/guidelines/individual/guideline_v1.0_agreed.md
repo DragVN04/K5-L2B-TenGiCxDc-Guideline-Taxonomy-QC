@@ -1,10 +1,4 @@
-# Guideline gán nhãn — 067
-
-- Phiên bản: nháp góp ý cá nhân từ v0
-- Ngày soạn nháp: 2026-11-16
-- Mã thành viên: 067
-
-> Bản nháp do Codex đề xuất sau khi xem đủ 40 ảnh. Thành viên 067 cần đối chiếu ảnh gốc, tự chốt quyết định và cập nhật trước khi dùng làm bản cá nhân. Các ví dụ dưới đây minh họa quy tắc, không phải danh sách box cần vẽ.
+# Guideline gán nhãn sau tổng hợp
 
 ## 1. Mục tiêu
 
@@ -19,8 +13,8 @@ Tạo nhãn bounding box 2D để phát hiện người và các phương tiện
 | `van` | Xe cỡ nhỏ đến vừa có khoang kín liền với thân. | Xe trắng sau người đi xe, img_005.jpg. | Bán tải có nắp thùng cao, img_037.jpg. |
 | `motorcycle` | Xe máy hoặc mô tô, kể cả sidecar nếu gắn liền với mô tô và nhận dạng được. | Xe máy đỏ, img_026.jpg. | Xe đạp ở img_006.jpg, tuk-tuk ở img_004.jpg. |
 | `person` | Người thật, thấy trực tiếp trong ảnh, dù đang đi bộ hay ngồi trên xe. | Người băng qua đường, img_034.jpg. | Tượng ở img_017.jpg, ảnh chân dung ở img_018.jpg. |
-| `bus` (đề xuất) | Xe có cấu hình chở khách tập thể kiểu xe buýt, kể cả xe buýt nhỏ. | Xe buýt ở img_009.jpg và img_037.jpg. | Van trắng, img_005.jpg. |
-| `tuk_tuk` (đề xuất) | Xe cơ giới ba bánh có thân xe chở người hoặc hàng. | Hai xe màu xanh, img_004.jpg. | Xích lô đạp, img_023.jpg. |
+| `bus` | Xe có cấu hình chở khách tập thể kiểu xe buýt, kể cả xe buýt nhỏ. | Xe buýt ở img_009.jpg và img_037.jpg. | Van trắng, img_005.jpg. |
+| `tuk_tuk` | Xe cơ giới ba bánh có thân xe chở người hoặc hàng. | Hai xe màu xanh, img_004.jpg. | Xích lô đạp, img_023.jpg. |
 | `ignore_region` | Vùng có cụm vật mục tiêu quá nhỏ hoặc dày đến mức không thể tách để gán từng vật. | Cụm sâu có thể cần khoanh ở img_021.jpg. | Các xe máy tiền cảnh còn tách được ở img_030.jpg. |
 
 
