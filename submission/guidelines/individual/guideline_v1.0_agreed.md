@@ -1,88 +1,126 @@
-# Guideline gán nhãn ảnh đường phố — 043
+# Guideline gán nhãn — 067
 
-- Phiên bản `v0.1` · Bản đề xuất cá nhân, Pha 1 · 16/11/2026
-- Phạm vi `img_001.jpg` đến `img_040.jpg` · Hộp chữ nhật (bounding box) trong CVAT · Xuất COCO 1.0
-- Bộ nhãn sử dụng trong bản này lấy từ [taxonomy hiện tại](../../taxonomy.json).
+- Phiên bản: nháp góp ý cá nhân từ v0
+- Ngày soạn nháp: 2026-11-16
+- Mã thành viên: 067
+
 
 ## 1. Mục tiêu
 
-Tạo dữ liệu cho mô hình phát hiện người và phương tiện trong ảnh 2D, kể cả khi vật đang đỗ, bị che khuất hoặc nằm sát mép ảnh. Nhãn cần giúp mô hình phân biệt từng người và từng xe trong cảnh đông. Ví dụ, gộp người lái và xe máy vào một hộp làm mất thông tin vị trí của từng đối tượng.
-
-**Thứ tự thao tác** — Xác định vật thật thuộc lớp nào → tách từng đối tượng → ôm sát phần nhìn thấy → đo chiều cao hộp → điền thuộc tính → ghi ca cần duyệt.
+Tạo nhãn bounding box 2D để phát hiện người và các phương tiện thuộc phạm vi lab trong ảnh đường phố. Sử dụng CVAT và COCO 1.0. Ưu tiên không bỏ sót vật đủ điều kiện, không gán nhãn cho vật giả hoặc ngoài phạm vi, phân biệt đúng lớp và đặt box sát phần vật nhìn thấy.
 
 ## 2. Lớp và thuộc tính
 
-### 2.1 Chọn lớp (R-01)
+| Lớp | Định nghĩa | Ví dụ tham chiếu | Phản ví dụ hoặc dễ nhầm |
+|---|---|---|---|
+| `car` | Ô tô con, SUV và taxi dạng ô tô con. | Taxi xanh, img_040.jpg. | Bán tải có thùng riêng, img_037.jpg. |
+| `truck` | Xe tải hoặc bán tải có thùng/chassis chở hàng độc lập. | Xe tải xanh, img_036.jpg. | Van thân liền, img_005.jpg. |
+| `van` | Xe cỡ nhỏ đến vừa có khoang kín liền với thân. | Xe trắng sau người đi xe, img_005.jpg. | Bán tải có nắp thùng cao, img_037.jpg. |
+| `motorcycle` | Xe máy hoặc mô tô, kể cả sidecar nếu gắn liền với mô tô và nhận dạng được. | Xe máy đỏ, img_026.jpg. | Xe đạp ở img_006.jpg, tuk-tuk ở img_004.jpg. |
+| `person` | Người thật, thấy trực tiếp trong ảnh, dù đang đi bộ hay ngồi trên xe. | Người băng qua đường, img_034.jpg. | Tượng ở img_017.jpg, ảnh chân dung ở img_018.jpg. |
+| `bus` (đề xuất) | Xe có cấu hình chở khách tập thể kiểu xe buýt, kể cả xe buýt nhỏ. | Xe buýt ở img_009.jpg và img_037.jpg. | Van trắng, img_005.jpg. |
+| `tuk_tuk` (đề xuất) | Xe cơ giới ba bánh có thân xe chở người hoặc hàng. | Hai xe màu xanh, img_004.jpg. | Xích lô đạp, img_023.jpg. |
+| `ignore_region` | Vùng có cụm vật mục tiêu quá nhỏ hoặc dày đến mức không thể tách để gán từng vật. | Cụm sâu có thể cần khoanh ở img_021.jpg. | Các xe máy tiền cảnh còn tách được ở img_030.jpg. |
 
-| Lớp             | Dấu hiệu để chọn                                                                                                                    | Ví dụ trong bộ ảnh                                                         | Dễ nhầm với                                                                        |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `car`           | Ô tô con chở người, gồm sedan, hatchback, wagon, SUV và taxi có dáng ô tô con.                                                      | Sedan đen bên trái `img_023`, taxi xanh `img_040`.                         | Bán tải có khoang hàng riêng thuộc `truck`.                                        |
-| `truck`         | Xe có khoang, sàn hoặc thùng hàng tách với cabin. Gồm bán tải, xe thùng kín hoặc phủ bạt và xe chuyên chở ô tô.                     | Xe tải xanh `img_036`, bán tải trắng gắn nắp cao `img_037`.                | Nắp gắn trên thùng bán tải vẫn là một phần của `truck`.                            |
-| `van`           | Xe cỡ nhỏ dạng thân hộp, cabin và khoang sau liền thân dưới cùng một mui. Có thể có cửa kính bên hông.                              | Xe bạc phía sau nhóm người đi xe máy trong `img_005`.                      | Xe tải có thùng kín tách cabin thuộc `truck`. Xe buýt và minibus ngoài phạm vi.    |
-| `motorcycle`    | Mô tô, xe máy, xe tay ga hoặc xe gắn máy có kết cấu xe hai bánh, kể cả khi gắn thùng bên (sidecar).                                 | Xe đỏ trong `img_026`, mô tô gắn sidecar trong `img_022`.                  | Xe đạp, xích lô và tuk-tuk có khung ba bánh riêng ngoài phạm vi.                   |
-| `person`        | Một người thật nhìn thấy trực tiếp, gồm người đứng, đi bộ, ngồi, người lái và hành khách.                                           | Hai người qua đường trong `img_014`, hai người trên xe đỏ trong `img_026`. | Tượng, ma-nơ-canh, búp bê, người in trên biển và ảnh phản chiếu bị loại theo R-02. |
-| `ignore_region` | Vùng ảnh cục bộ chứa vật đích dưới ngưỡng kích thước hoặc cụm vật đích dính nhau đến mức không tách được từng vật. Xử lý theo R-06. | Phần xa của dòng xe trong `img_021` nếu đạt điều kiện R-06.                | Vật đã xác định ngoài phạm vi và ca một đối tượng còn mơ hồ có cách xử lý riêng.   |
 
-Xe buýt, minibus, tuk-tuk, xe đạp, xích lô và động vật được bỏ qua theo bộ nhãn hiện tại. Vẫn xét riêng người đang lái, ngồi trên hoặc đứng cạnh các phương tiện đó. Nếu hai lớp xe đều có vẻ hợp lý, ưu tiên dấu hiệu kết cấu nhìn thấy trong ảnh. Nếu vẫn còn nghi ngờ, áp dụng R-07.
+| Thuộc tính | Giá trị và tiêu chí |
+|---|---|
+| `occluded_level` | `0` không che. `1` trên 0% đến 30%. `2` trên 30% đến 70%. `3` trên 70% nếu vẫn nhận dạng chắc chắn. Ước lượng phần diện tích vật bị vật khác che, tách với phần ngoài khung ảnh. |
+| `truncated` | `yes` nếu vật bị mép ảnh cắt; `no` nếu toàn bộ vật nằm trong khung. |
+| `can_review` | Bật khi đã vẽ box nhưng còn nghi vấn. Tắt khi không có nghi vấn. Nếu chưa đủ căn cứ vẽ, ghi vấn đề cấp ảnh. |
 
-### 2.2 Điền thuộc tính (R-05)
+## 3. Quy tắc vẽ box
 
-| Thuộc tính       | Giá trị                    | Cách chọn                                                                                                                                                                                                                                                                 |
-| ---------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `occluded_level` | `0`, `1`, `2`, `3`         | Ước lượng tỉ lệ diện tích hình chiếu của vật **trong khung ảnh** bị vật khác che. `0` = 0%, `1` = trên 0% đến dưới 25%, `2` = từ 25% đến dưới 60%, `3` = từ 60% trở lên và phần còn thấy vẫn đủ để gán. Ước lượng theo hình dáng của vật, dùng hộp phần nhìn thấy khi vẽ. |
-| `truncated`      | `no`, `yes`                | Chọn `yes` khi mép ảnh cắt qua một phần của vật. Chọn `no` khi vật nằm trọn trong ảnh hoặc chỉ bị vật khác che. Hộp sát mép ảnh vẫn có thể là `no` nếu đường viền vật còn nguyên.                                                                                         |
-| `can_review`     | Checkbox, mặc định bỏ tick | Tick khi đã có hộp hợp lý nhưng còn phân vân về lớp, ranh giới hộp, mức che hoặc trạng thái cắt mép. Ghi rõ điểm phân vân để reviewer đối chiếu theo R-07.                                                                                                                |
+- **R-01** — Phân lớp theo cấu tạo. car là ô tô con/SUV, kể cả taxi bốn bánh. truck là xe tải và bán tải có cabin và thùng hàng tách biệt, kể cả gắn nắp. van có khoang kín liền thân và không nhận ra thùng hàng độc lập. Đề xuất thêm bus cho xe chở khách tập thể có cấu hình xe buýt (kể cả xe buýt nhỏ) và tuk_tuk cho xe ba bánh có động cơ với thân chở người hoặc hàng. Xe máy/mô tô hai bánh có sidecar gắn liền vẫn là motorcycle, nếu nhận dạng đủ rõ.
+- **R-02** — Mỗi vật thể một hình chữ nhật ôm sát mọi phần nhìn thấy thuộc vật đó. Không nội suy phần bị che. Nếu hai phần nhìn thấy của cùng một vật cách nhau thì dùng một hình chữ nhật bao cả hai. Không gộp các vật riêng chỉ vì box chồng nhau.
+- **R-03** — Xe đạp và xích lô đạp ngoài phạm vi. Người đi cùng vẫn được xét theo tiêu chí person. Không dùng ignore_region chỉ vì gặp một vật ngoài taxonomy.
+- **R-04** — Xét che khuất và cắt mép riêng. Box nằm trong biên ảnh. Dùng truncated=yes khi có dấu hiệu vật tiếp tục qua mép ảnh. Nếu đồng thời bị vật khác che thì vẫn ghi occluded_level riêng. Không tính phần ngoài khung là bị vật khác che.
+- **R-05** — Tách một box cho mỗi người thật và một box cho phương tiện. Người lái và người ngồi sau là các vật riêng, nếu từng người nhận dạng được và đạt ngưỡng. Chỉ gán người trong cabin khi thấy trực tiếp đủ hình thể, kể cả qua kính trong. Không suy từ ghế, mũ hoặc bóng.
+- **R-06** — Xe chở xe có một box cho kết cấu vận tải nối liền, gồm đầu kéo, sàn và khung; không kéo theo phần xe được chở nhô ngoài kết cấu. Mỗi xe thật được chở có box riêng nếu nhận dạng được và đạt ngưỡng, kể cả khi box nằm trong box xe tải.
+- **R-07** — Phần cố định tạo hình thân xe nằm trong box, như mái tuk-tuk, thùng kín hoặc nắp gắn trên bán tải. Hàng, bao buộc, tượng, đạo cụ nhô ra và vật người đang cầm nằm ngoài box. Nếu hàng che thân xe, đánh giá che khuất riêng.
+- **R-08** — Chỉ gán vật thể thật thấy trực tiếp. Loại hình in, màn hình, tượng, ma-nơ-canh, mô hình, phản chiếu và phần xe gắn camera. Vật thật nhìn xuyên kính vẫn được xét. Với đồ trưng bày hay xe diễu hành, dùng dấu hiệu cấu tạo và ngữ cảnh để phân biệt phương tiện thật với thân vỏ hoặc đạo cụ.
+- **R-09** — Đo chiều cao box phần nhìn thấy trên ảnh gốc. Từ 20 px trở lên mới xem xét gán từng vật. Bỏ vật nhỏ lẻ dưới ngưỡng. Khoanh ignore_region sát cụm đám đông hoặc cụm vật nhỏ không thể tách; tránh phủ vật nhận dạng rõ. Nếu còn vật rõ trước cụm, gán riêng và thu lại vùng ignore.
+- **R-10** — Nhòe do chuyển động hoặc thiếu sáng không tự tạo occluded_level. Gán khi còn nhận dạng được lớp và ước lượng được đường bao; nếu chỉ còn vệt đèn hoặc vệt màu thì bỏ box. Ghi vấn đề cấp ảnh nếu có khả năng là vật mục tiêu và cần người khác xem.
+- **R-11** — Khi còn đủ căn cứ để vẽ nhưng phân vân lớp, biên hay thuộc tính, bật can_review. Nếu thiếu căn cứ để vẽ, ghi image, annotator, region, note vào image_issues.csv. Reviewer xem lại các ca này sau khi khóa bản độc lập.
+- **R-12** — Giữ mọi ảnh được giao trong COCO kể cả khi không có đối tượng hợp lệ. Đề xuất lớp mới ở Pha 2; khi dùng CVAT chỉ dùng taxonomy v1.0 của nhóm đã khóa.
 
-Đánh giá che và cắt mép độc lập. Một xe vừa khuất sau người vừa bị cắt bánh ở mép ảnh có thể nhận đồng thời `occluded_level=2` và `truncated=yes` nếu phần che trong ảnh đạt mức 2. Mờ chuyển động, thiếu sáng và phản sáng trên bề mặt tự chúng không làm tăng mức che. `ignore_region` không có ba thuộc tính này trong CVAT.
+## 4. Ca khó cần đem ra đối chiếu
 
-## 3. Quy tắc vẽ hộp
-
-1. **R-02 — Xác nhận vật thật nhìn trực tiếp.** Bỏ tượng, mô hình, xe đồ chơi, vỏ xe rời, hình in, bóng đổ và hình phản chiếu trong gương, kính hoặc mặt đường. Gán vật thật nhìn xuyên qua kính nếu nhận ra được từng vật. Bỏ phần của xe chủ (xe đặt máy ảnh), gồm gương, mui và cửa xe. Xe thật trưng bày, xe diễu hành có dáng ô tô thật và người thật mặc hóa trang vẫn xét theo lớp tương ứng.
-2. **R-03 — Tách từng đối tượng.** Một hộp cho mỗi xe, một hộp cho mỗi người. Xe máy chở hai người có ba hộp khi cả ba đều đạt điều kiện. Cho phép hộp chồng lên nhau. Với xe chuyên chở ô tô, vẽ một hộp `truck` cho cabin và khung/sàn chở liền cụm, rồi vẽ riêng từng ô tô nhận diện được và đủ kích thước. Mô tô và sidecar gắn vào xe dùng chung một hộp.
-3. **R-04 — Ôm sát bốn mép phần nhìn thấy.** Bao các phần nhận diện được của cùng một vật trong một hộp, kể cả khi chúng bị tách bởi vật che ở giữa. Dừng tại biên phần thấy được hoặc mép ảnh. Với xe, tính gương, bánh, thùng cố định và phụ kiện gắn cố định như biển taxi. Với người, tính quần áo, giày và mũ đang mặc. Loại hàng chở, túi cầm tay, thanh dài mang theo và xe được chở khỏi việc xác định mép hộp của vật mang/chở. Khi ảnh mờ, lấy ranh giới phần còn nhận ra được và bỏ vệt nhòe kéo dài.
-4. **R-05 — Soát thuộc tính riêng cho từng hộp.** Nhìn lại vật nào che trong ảnh và bộ phận nào bị cắt bởi mép ảnh, rồi dùng bảng ở mục 2.2. Người và xe cùng bị cắt ở một mép vẫn phải đánh giá riêng.
-5. **R-06 — Đo ngưỡng và giới hạn vùng bỏ qua.** Đo chiều cao hộp phần nhìn thấy theo pixel của ảnh gốc, không theo mức zoom. Hộp cao từ **20 px** trở lên đủ điều kiện về kích thước. Vật đích nhận ra được nhưng cao dưới 20 px dùng vùng `ignore_region` sát phần thấy được. Nếu nhiều vật nhỏ hoặc vật đích chồng dày tạo một cụm liền nhau không thể tách hộp, vẽ vùng chữ nhật nhỏ nhất bao phần cần bỏ qua. Tách vùng nếu một hộp chung sẽ phủ nhiều vật đủ điều kiện và dễ tách. Rà lại từng vật thấy rõ ở rìa cụm.
-6. **R-07 — Chuyển ca chưa chắc để duyệt.** Nếu đủ căn cứ về lớp và hình dáng để đặt một hộp hợp lý, gán và tick `can_review` khi còn điểm cần xác nhận. Nếu chỉ thấy mảnh rời, vệt mờ hoặc bóng người mà không xác định được đối tượng hay mép hộp, ghi tên ảnh, vị trí và lý do để đưa vào `submission/qc/image_issues.csv` theo cột `image,annotator,region,note` sau khi khóa nhãn. Chỉ dùng `ignore_region` nếu vùng đáp ứng R-06.
-
-## 4. Ca khó từ bộ ảnh
-
-Các dòng dưới đây mô tả vùng cần đối chiếu trong từng ảnh. Mở ảnh gốc để kiểm tra các vật khác trong cùng khung.
-
-| Ảnh và vị trí                                                                                                                                                                                           | Quy tắc          | Cách xử lý                                                                                                                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [img_002](../../../data/images/img_002.jpg) — Xe chở ô tô hai tầng                                                                                                                                      | R-03, R-04       | Một `truck` ôm cabin và khung/sàn chở. Tách các `car` trên cả hai tầng, kể cả các xe tầng dưới lộ một phần sau khung. Xe đỏ ở tầng trên có hộp riêng và không quyết định mép trên hộp `truck`.                                                                   |
-| [img_004](../../../data/images/img_004.jpg), [img_016](../../../data/images/img_016.jpg), [img_035](../../../data/images/img_035.jpg) — Tuk-tuk                                                         | R-01, R-04       | Bỏ các tuk-tuk theo taxonomy hiện tại, gồm chiếc chở bao tải cao trong `img_035`. Trong `img_035`, xe máy và người đội mũ ở tiền cảnh vẫn có hộp riêng. Nếu nhóm bổ sung `tuk_tuk` ở Pha 2, áp dụng R-04 để loại khối bao tải khỏi mép hộp xe.                   |
-| [img_005](../../../data/images/img_005.jpg), [img_026](../../../data/images/img_026.jpg) — Người và xe chồng nhau                                                                                       | R-01, R-03, R-05 | Xe bạc liền mui ở nền `img_005` là `van`. Xe đỏ `img_026` có một `motorcycle` và hai `person`. Xe đỏ bị cắt bánh ở mép dưới nên chọn `truncated=yes` cho xe và xem riêng từng người.                                                                             |
-| [img_006](../../../data/images/img_006.jpg), [img_023](../../../data/images/img_023.jpg), [img_039](../../../data/images/img_039.jpg) — Xe đạp và xích lô                                               | R-01, R-03       | Bỏ phương tiện đạp chân. Người đạp xích lô ở tiền cảnh `img_023` vẫn là `person`.                                                                                                                                                                                |
-| [img_009](../../../data/images/img_009.jpg), [img_037](../../../data/images/img_037.jpg), [img_040](../../../data/images/img_040.jpg) — Xe buýt hoặc minibus                                            | R-01             | Bỏ minibus giữa ảnh `img_009` và các xe buýt trong hai ảnh còn lại. Vẫn xét các xe và người thuộc lớp đích xung quanh.                                                                                                                                           |
-| [img_011](../../../data/images/img_011.jpg), [img_017](../../../data/images/img_017.jpg), [img_027](../../../data/images/img_027.jpg) — Tượng và vật trưng bày                                          | R-02, R-07       | Bỏ tượng người cưỡi ngựa và tượng bán tải trên bệ. Ở `img_011`, xét riêng các mô tô độ nhìn rõ kết cấu và khách tham quan. Nếu chưa phân biệt được nhân vật Predator là người hóa trang hay vật trưng bày từ ảnh, ghi vấn đề ở vùng phải ảnh để duyệt.           |
-| [img_012](../../../data/images/img_012.jpg), [img_028](../../../data/images/img_028.jpg), [img_029](../../../data/images/img_029.jpg) — Hàng nhô khỏi xe                                                | R-01, R-04       | Bán tải `img_012` và `img_028` là `truck`. Loại bao/thùng hàng và tượng ngựa khỏi mép hộp. Trong `img_029`, loại thanh dài khỏi hộp xe máy và hộp người.                                                                                                         |
-| [img_014](../../../data/images/img_014.jpg), [img_015](../../../data/images/img_015.jpg) — Mờ và cắt mép                                                                                                | R-04, R-05, R-07 | Hai người rõ ở `img_014` có hai hộp, mép hộp người bên phải không chạy theo túi xách. Với vệt xe mờ không khoanh được, ghi vùng cần duyệt. Hai ô tô lớn ở hai mép `img_015` nhận `truncated=yes`. Bỏ ảnh phản sáng của chúng trên mặt đường.                     |
-| [img_018](../../../data/images/img_018.jpg) — Biển quảng cáo và hàng rào                                                                                                                                | R-02, R-05       | Bỏ chân dung in trên biển. Xét riêng xe thật sau hàng rào và tính phần hình chiếu bị thanh rào che khi chọn mức che.                                                                                                                                             |
-| [img_019](../../../data/images/img_019.jpg) — Xe diễu hành màu vàng                                                                                                                                     | R-02, R-03       | Gán `car` cho xe có thân, bánh và vị trí lái rõ. Xét người lái và khán giả thành từng `person`. Nhân vật đầu chuột cần duyệt nếu chưa rõ là người hóa trang hay đạo cụ.                                                                                          |
-| [img_020](../../../data/images/img_020.jpg), [img_033](../../../data/images/img_033.jpg), [img_038](../../../data/images/img_038.jpg) — Gương, kính, ma-nơ-canh và đồ chơi                              | R-02             | Bỏ gương xe chủ và cảnh trong gương ở `img_020`. Bỏ ma-nơ-canh và hình xe phản chiếu ở `img_033`. Bỏ xe mô hình và búp bê trong tủ kính `img_038`.                                                                                                               |
-| [img_021](../../../data/images/img_021.jpg), [img_025](../../../data/images/img_025.jpg), [img_030](../../../data/images/img_030.jpg), [img_032](../../../data/images/img_032.jpg) — Cụm đông và vật xa | R-03, R-06       | Tách người và xe ở tiền cảnh `img_021`, đo phần thấy được của các dáng người xa trên lối đi `img_025`. Dùng `ignore_region` cục bộ cho cụm đủ điều kiện. Ở `img_030` và `img_032`, vẫn tách các xe máy và người nào thấy được ranh giới riêng, dù đứng sát nhau. |
-| [img_022](../../../data/images/img_022.jpg) — Mô tô có sidecar                                                                                                                                          | R-01, R-03       | Một `motorcycle` ôm cả mô tô và sidecar gắn liền.                                                                                                                                                                                                                |
-| [img_024](../../../data/images/img_024.jpg) — Xe đen và vỏ vàng trên nóc                                                                                                                                | R-02, R-04       | Gán `car` cho xe đen trưng bày. Thân vỏ vàng là vật trang trí trên nóc nên bỏ qua khi đặt mép hộp xe đen.                                                                                                                                                        |
-| [img_034](../../../data/images/img_034.jpg), [img_040](../../../data/images/img_040.jpg) — Người lái ở rìa ảnh                                                                                          | R-03, R-05, R-07 | Tách người khỏi xe. Với người đội mũ đen ở `img_040`, đặt hộp `person` đến mép dưới và chọn `truncated=yes`. Nếu các mảnh xe ở mép dưới không đủ để xác định cùng một xe và vẽ hộp, ghi vấn đề theo R-07.                                                        |
-| [img_036](../../../data/images/img_036.jpg), [img_037](../../../data/images/img_037.jpg) — Cabin nhỏ, thùng lớn                                                                                         | R-01, R-04       | Cả xe tải xanh phủ bạt và bán tải trắng có nắp thùng cao thuộc `truck`. Hộp tính cả phần thùng hoặc nắp gắn cố định nhìn thấy.                                                                                                                                   |
+| Ảnh | Tình huống | Quy tắc | Hướng xử lý đề xuất và dấu hiệu cần kiểm |
+|---|---|---|---|
+| img_002.jpg | Xe tải chở ô tô hai tầng | R-06 | Một box cho đầu kéo và kết cấu chở nối liền, thêm box riêng cho từng ô tô nhận dạng được; rà từng tầng. |
+| img_004.jpg | Hai tuk-tuk đỗ cạnh nhau | R-01, R-02 | Đề xuất lớp tuk_tuk, mỗi xe một box, tránh gộp hai xe. |
+| img_005.jpg | Van trắng sau nhiều người đội mũ bảo hiểm | R-04, R-05 | Gán van riêng; từng người và xe đủ dấu hiệu có box riêng, không gán qua suy đoán từ mũ. |
+| img_014.jpg | Hai người đi bộ rõ và dòng xe nhòe | R-10 | Gán hai người nhìn được; bóng nhòe không có đặc điểm nhận dạng thì bỏ box và ghi vấn đề nếu cần. |
+| img_016.jpg | Tuk-tuk sát mép và bán tải sáng màu nhìn qua phần che | R-01, R-04, R-11 | Tuk-tuk gán riêng nếu đủ dấu hiệu; phân biệt phần xe sau với xe trước, ghi ca ảnh nếu chưa xác định được kiểu thân. |
+| img_017.jpg | Tượng người cưỡi ngựa | R-08 | Không gán person cho tượng; cọc tiêu trên đầu tượng cũng ngoài phạm vi. |
+| img_019.jpg | Xe diễu hành màu vàng, đầu nhân vật lớn và khán giả | R-07, R-08, R-11 | Đề xuất car nếu xác nhận là xe thật có kết cấu ô tô; loại đạo cụ, xét riêng người thật. |
+| img_020.jpg | Gương chiếu hậu, phản chiếu và phần xe gắn camera | R-08, R-12 | Loại hình phản chiếu và phần xe chủ; vẫn giữ bản ghi ảnh nếu không có box. |
+| img_021.jpg | Dòng xe máy đông, có vật rõ ở tiền cảnh | R-05, R-09 | Gán từng vật tách được; khoanh ignore riêng cụm sâu nếu không thể tách. |
+| img_022.jpg | Cụm xe hai bánh có thùng bên cạnh, ảnh đen trắng | R-01, R-07, R-11 | Nếu xác nhận là mô tô có sidecar cố định, đề xuất một motorcycle bao cả kết cấu; nếu chưa chắc, ghi vấn đề cấp ảnh. |
+| img_024.jpg | Xe thật trong khu trưng bày và vật giống thân xe trên nóc | R-06, R-07, R-08 | Gán xe thật độc lập; kiểm vật trên nóc là thân vỏ hay xe hoàn chỉnh trước khi gán, không kéo box xe dưới lên theo vật trên nóc. |
+| img_026.jpg | Hai người ngồi trên xe máy đỏ ở mép dưới | R-04, R-05, R-08 | Tách hai người và một xe nếu từng vật đủ điều kiện; kiểm tọa độ sát biên, bỏ qua hình trên tường. |
+| img_027.jpg | Hình bán tải trên bệ có biển tưởng niệm | R-08 | Căn cứ bệ và ngữ cảnh để loại vật trưng bày dạng tượng, không dùng riêng hình dáng để gán truck. |
+| img_028.jpg | Bán tải cổ chở tượng ngựa | R-01, R-07, R-08 | Gán xe thật là truck nếu nhận dạng được thùng hàng; loại tượng khỏi box xe và khỏi các lớp vật thể. |
+| img_030.jpg | Bãi xe máy dày đặc, nhiều xe khuất một phần | R-04, R-09 | Gán từng xe tiền cảnh tách được; chỉ khoanh ignore ở cụm nền không thể tách. |
+| img_033.jpg | Ma-nơ-canh và nhiều lớp kính | R-08, R-11 | Không gán person cho ma-nơ-canh; chỉ gán xe nếu xác nhận thấy trực tiếp xe thật chứ không qua phản chiếu. |
+| img_035.jpg | Tuk-tuk chở hàng cao và người đi mô tô cạnh bên | R-05, R-07 | Box tuk_tuk ôm thân xe, không ôm bao kiện phía trên; xét riêng người và mô tô. |
+| img_037.jpg | Bán tải nắp thùng cao, xe buýt ở mép trái | R-01, R-04, R-07 | Giữ truck khi còn thấy cấu trúc cabin và thùng tách biệt; nắp gắn cố định thuộc box; xe buýt xét riêng. |
+| img_038.jpg | Tủ kính chứa nhiều xe mô hình và đồ chơi | R-08, R-09, R-12 | Loại mô hình khỏi car và các lớp khác; không dùng ignore để che các vật ngoài phạm vi. |
 
 ## 5. QC và phiên bản
 
-### Tự kiểm trước khi nộp nhãn
+- Kiểm COCO đủ ảnh giao, đúng lớp và thuộc tính, box có diện tích dương và nằm trong biên. Kiểm bằng mắt việc ôm sát phần nhìn thấy, vật bỏ sót và hình giả.
+- Giữ nguyên ngưỡng trong taxonomy: chiều cao tối thiểu 20 px, mốc lớn 50 px, ngưỡng IoU theo nhóm kích thước 0,85 và 0,70. Ghép box 1–1 từ IoU 0,50; đọc IoU trung bình từ 0,85 và đồng thuận lớp từ 95% trên các cặp ghép. Đọc riêng ca bỏ sót và thừa, vì chúng có thể không xuất hiện trong mẫu số cặp ghép.
+- Duyệt đủ 40/40 ảnh ở vòng bàn giao. Ngưỡng lỗi theo ảnh tối đa 2% để xét Release. Reviewer còn kiểm bằng chứng, cờ cần xem và lỗi lặp theo đề; mở vòng mới sau khi sửa nhãn.
+- Điều phối viên tập hợp ca mơ hồ; cả nhóm chốt khi họp. Sau khi khóa v1.0, giữ nhãn độc lập để đo IAA. Ở calibration, ghi mã quy tắc, người chốt và kết quả kiểm lại; nếu đổi ý nghĩa, rà lại cả 40 ảnh.
 
-- [ ] Rà ảnh từ trái sang phải, kiểm cả hai mép, hậu cảnh và các vật chồng nhau. Mỗi vật thuộc lớp đích có đúng một hộp hoặc được xử lý theo R-06/R-07.
-- [ ] Hộp nằm trong ảnh, bốn cạnh khít với phần thấy được, hộp đối tượng cao ít nhất 20 px. Kiểm lại hàng chở, bóng, hình in, phản chiếu và hộp trùng.
-- [ ] Lớp và thuộc tính khớp quy tắc. Đã ghi ca mơ hồ kèm vị trí và mã R tương ứng.
-- [ ] Khi gán chính thức, dùng bản v1.0 đã khóa. Xuất COCO 1.0, giữ cả ảnh có 0 hộp, rồi chạy `python scripts/validate_labels.py submission/labels/043.json` từ thư mục gốc.
+| Phiên bản | Thay đổi | Lý do |
+|---|---|---|
+| v0 | Đặc tả khởi đầu của lab. | Dùng để nhận diện chỗ mơ hồ. |
+| Nháp 067 | Đề xuất hai lớp và 12 quy tắc, bổ sung ca khó và bảng quan sát. | Ranh giới lớp, giao nhau, che/cắt và vật giả xuất hiện nhiều lần trong bộ ảnh. |
 
-### Đối chiếu của nhóm và nghiệm thu
+### Phụ lục: ghi nhận khi duyệt 40 ảnh
 
-- Đủ **100% lượt gán được phân công** mới tính IAA. Ghép hộp 1–1 theo IoU **≥ 0,50**, không phân biệt lớp khi ghép. Tách riêng hộp chưa ghép và bất đồng vùng bỏ qua. Trên các cặp đã ghép, ngưỡng IoU từng cặp là **0,85** nếu chiều cao trung bình hai hộp **≥ 50 px**, hoặc **0,70** nếu thấp hơn. IAA đạt khi IoU trung bình **≥ 0,85** và tỉ lệ cùng lớp **≥ 95%**.
-- Reviewer và nhóm đối chiếu cờ `can_review`, các vấn đề cấp ảnh và bất đồng trong buổi calibration. Ghi quyết định, lý do, mã quy tắc và phạm vi ảnh bị ảnh hưởng trong `calibration_decisions.csv`. Nếu đổi quy tắc làm đổi nhãn, tăng phiên bản guideline và rà lại các ảnh chịu tác động.
-- QC ghi từng lỗi theo một trong năm nhóm gồm bỏ sót, thừa, sai lớp, sai vị trí/kích thước và sai thuộc tính. Tỉ lệ ảnh lỗi tính theo số ảnh có ít nhất một lỗi chia cho số ảnh đã duyệt. **Hold** khi thiếu bằng chứng hoặc mới duyệt mẫu. **Rework** nếu tỉ lệ vượt **2%** hoặc một loại lỗi có ít nhất 3 lỗi và chiếm ít nhất 50% tổng số lỗi. **Release** khi đủ bằng chứng, đã duyệt toàn bộ lô, tỉ lệ ảnh lỗi **≤ 2%** và không có lỗi lặp theo tiêu chí trên. Với 40 ảnh, 1 ảnh lỗi tương đương 2,5%. [Tóm tắt QC](../../../docs/QC_CHEATSHEET.md)
-
-| Phiên bản | Thay đổi                                                                                 | Căn cứ                                                              |
-| --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `v0`      | Guideline khởi đầu của lab.                                                              | [Bản gốc](../../../guideline/guideline_v0_starter.md)               |
-| `v0.1`    | Định nghĩa dấu hiệu chọn lớp, cách vẽ phần nhìn thấy, ngưỡng che khuất và xử lý ca biên. | Rà 40 ảnh, đối chiếu với taxonomy hiện tại và quy trình QC của lab. |
+| Ảnh | Điểm cần kiểm trên ảnh gốc | Hướng xử lý để 067 review | Quy tắc |
+|---|---|---|---|
+| img_001.jpg | Bán tải trắng cắt mép và người ở quán | Xét riêng xe và từng người thấy trực tiếp; tách cắt mép khỏi che khuất. | R-02, R-04 |
+| img_002.jpg | Xe tải chở ô tô hai tầng | Một box cho đầu kéo và kết cấu chở nối liền, thêm box riêng cho từng ô tô nhận dạng được; rà từng tầng. | R-06 |
+| img_003.jpg | Người gánh hàng, xe hai bánh và vật ở nền | Box người bỏ đòn gánh và giỏ; phân biệt xe đạp với xe máy trước khi chọn lớp. | R-03, R-05, R-07 |
+| img_004.jpg | Hai tuk-tuk đỗ cạnh nhau | Đề xuất lớp tuk_tuk, mỗi xe một box, tránh gộp hai xe. | R-01, R-02 |
+| img_005.jpg | Van trắng sau nhiều người đội mũ bảo hiểm | Gán van riêng; từng người và xe đủ dấu hiệu có box riêng, không gán qua suy đoán từ mũ. | R-04, R-05 |
+| img_006.jpg | Xe đạp sát các xe máy và người đi cùng | Giữ người đủ điều kiện; loại xe đạp khỏi taxonomy phương tiện. | R-03, R-05 |
+| img_007.jpg | Xe con màu sáng nhìn chính diện cạnh xe tải thùng | Phân loại theo thân xe nhìn thấy; xe nhỏ có thùng độc lập vẫn có thể là truck. | R-01 |
+| img_008.jpg | Nhiều xe máy đỗ sát và người mặc áo nổi | Tách từng xe nhận dạng được; chỉ dùng ignore cho cụm không thể tách. | R-02, R-09 |
+| img_009.jpg | Xe buýt nhỏ bên đường | Đề xuất bus dựa trên cấu hình chở khách tập thể; kích thước nhỏ không đủ để đổi sang van. | R-01 |
+| img_010.jpg | Người ngồi xe bên sạp rau | Tách người khỏi xe; thúng rau và đồ sạp nằm ngoài box. | R-05, R-07 |
+| img_011.jpg | Tượng kim loại tiền cảnh và người thật phía xa | Loại tượng khỏi person; xét riêng người thật và cụm nền. | R-08, R-09 |
+| img_012.jpg | Thùng bán tải đầy hàng phía trước, xe con ở bên trái | Box bán tải loại phần tải nhô; gán xe con riêng nếu đủ điều kiện. | R-01, R-07 |
+| img_013.jpg | Đường đêm, người gần vùng sáng và xe xa | Chỉ gán khi nhận dạng được thân vật; điểm sáng đơn lẻ không đủ. | R-04, R-09 |
+| img_014.jpg | Hai người đi bộ rõ và dòng xe nhòe | Gán hai người nhìn được; bóng nhòe không có đặc điểm nhận dạng thì bỏ box và ghi vấn đề nếu cần. | R-10 |
+| img_015.jpg | Xe con ở hai mép và nền đường ướt | Xe ở mép đặt truncated=yes nếu bị khung cắt; không gán vùng phản quang trên đường. | R-04, R-08, R-10 |
+| img_016.jpg | Tuk-tuk sát mép và bán tải sáng màu nhìn qua phần che | Tuk-tuk gán riêng nếu đủ dấu hiệu; phân biệt phần xe sau với xe trước, ghi ca ảnh nếu chưa xác định được kiểu thân. | R-01, R-04, R-11 |
+| img_017.jpg | Tượng người cưỡi ngựa | Không gán person cho tượng; cọc tiêu trên đầu tượng cũng ngoài phạm vi. | R-08 |
+| img_018.jpg | Chân dung trên biển, xe thật sau hàng rào | Loại hình in; xét box từng xe thật, đánh giá phần bị hàng rào che. | R-04, R-08 |
+| img_019.jpg | Xe diễu hành màu vàng, đầu nhân vật lớn và khán giả | Đề xuất car nếu xác nhận là xe thật có kết cấu ô tô; loại đạo cụ, xét riêng người thật. | R-07, R-08, R-11 |
+| img_020.jpg | Gương chiếu hậu, phản chiếu và phần xe gắn camera | Loại hình phản chiếu và phần xe chủ; vẫn giữ bản ghi ảnh nếu không có box. | R-08, R-12 |
+| img_021.jpg | Dòng xe máy đông, có vật rõ ở tiền cảnh | Gán từng vật tách được; khoanh ignore riêng cụm sâu nếu không thể tách. | R-05, R-09 |
+| img_022.jpg | Cụm xe hai bánh có thùng bên cạnh, ảnh đen trắng | Nếu xác nhận là mô tô có sidecar cố định, đề xuất một motorcycle bao cả kết cấu; nếu chưa chắc, ghi vấn đề cấp ảnh. | R-01, R-07, R-11 |
+| img_023.jpg | Xích lô gần và ô tô tối màu đối diện | Giữ person nếu đủ dấu hiệu, không gán xích lô đạp; xét car riêng. | R-01, R-03, R-05 |
+| img_024.jpg | Xe thật trong khu trưng bày và vật giống thân xe trên nóc | Gán xe thật độc lập; kiểm vật trên nóc là thân vỏ hay xe hoàn chỉnh trước khi gán, không kéo box xe dưới lên theo vật trên nóc. | R-06, R-07, R-08 |
+| img_025.jpg | Người rải rác trên lối đi và phương tiện xa | Đo trên ảnh gốc; gán từng người đủ điều kiện, không gom cả lối đi vào ignore. | R-09 |
+| img_026.jpg | Hai người ngồi trên xe máy đỏ ở mép dưới | Tách hai người và một xe nếu từng vật đủ điều kiện; kiểm tọa độ sát biên, bỏ qua hình trên tường. | R-04, R-05, R-08 |
+| img_027.jpg | Hình bán tải trên bệ có biển tưởng niệm | Căn cứ bệ và ngữ cảnh để loại vật trưng bày dạng tượng, không dùng riêng hình dáng để gán truck. | R-08 |
+| img_028.jpg | Bán tải cổ chở tượng ngựa | Gán xe thật là truck nếu nhận dạng được thùng hàng; loại tượng khỏi box xe và khỏi các lớp vật thể. | R-01, R-07, R-08 |
+| img_029.jpg | Người với xe đạp, xe máy và thanh dài | Xét đủ dấu hiệu cho motorcycle, bỏ xe đạp; không kéo box người hoặc xe theo thanh dài. | R-03, R-05, R-07 |
+| img_030.jpg | Bãi xe máy dày đặc, nhiều xe khuất một phần | Gán từng xe tiền cảnh tách được; chỉ khoanh ignore ở cụm nền không thể tách. | R-04, R-09 |
+| img_031.jpg | Phố đêm mưa, đèn xe và các vệt phản chiếu | Ưu tiên đường viền và cấu trúc xe khi phân lớp; không dùng vệt phản chiếu làm phần box. | R-01, R-08, R-10 |
+| img_032.jpg | Hàng người sau dải phân cách, xe cắt mép trái | Tách người còn đủ dấu hiệu và đạt ngưỡng; xét ignore cho cụm bất khả phân; xe sát biên kiểm truncated. | R-04, R-09 |
+| img_033.jpg | Ma-nơ-canh và nhiều lớp kính | Không gán person cho ma-nơ-canh; chỉ gán xe nếu xác nhận thấy trực tiếp xe thật chứ không qua phản chiếu. | R-08, R-11 |
+| img_034.jpg | Người đi bộ giữa giao lộ và xe ở mép phải | Box riêng cho người đi bộ; xét từng người và xe sát mép theo dấu hiệu và cắt khung. | R-04, R-05 |
+| img_035.jpg | Tuk-tuk chở hàng cao và người đi mô tô cạnh bên | Box tuk_tuk ôm thân xe, không ôm bao kiện phía trên; xét riêng người và mô tô. | R-05, R-07 |
+| img_036.jpg | Xe tải xanh nhỏ có thùng phủ bạt phía sau | Gán truck dựa vào thùng độc lập; phần bạt cố định tạo thành vỏ thùng thuộc box. | R-01, R-07 |
+| img_037.jpg | Bán tải nắp thùng cao, xe buýt ở mép trái | Giữ truck khi còn thấy cấu trúc cabin và thùng tách biệt; nắp gắn cố định thuộc box; xe buýt xét riêng. | R-01, R-04, R-07 |
+| img_038.jpg | Tủ kính chứa nhiều xe mô hình và đồ chơi | Loại mô hình khỏi car và các lớp khác; không dùng ignore để che các vật ngoài phạm vi. | R-08, R-09, R-12 |
+| img_039.jpg | Phố có nhiều xe nhỏ ở xa, xe đạp lẫn xe máy | Chỉ gán xe máy khi thấy dấu hiệu phân biệt đủ rõ; đo ngưỡng trên ảnh gốc. | R-03, R-09, R-11 |
+| img_040.jpg | Người đội mũ tiền cảnh, taxi và tuk-tuk phía sau | Tách người khỏi phương tiện; taxi bốn bánh là car nếu nhận dạng rõ, không suy ra lớp từ biển TAXI. | R-01, R-04, R-05 |
