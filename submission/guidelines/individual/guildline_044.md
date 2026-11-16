@@ -5,7 +5,7 @@
 
 - Phiên bản: v0
 - Ngày: 16/11/2026
-- Người viết / duyệt: Cao Quy Binh
+- Người viết / duyệt: 044
 
 ## 1. Mục tiêu
 Mô hình nào dùng nhãn này, để làm gì, sai ở đâu thì nguy hiểm.
